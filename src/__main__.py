@@ -6,6 +6,7 @@ from schema import SchemaError
 from werkzeug.exceptions import abort
 
 from compute_environment import ComputeEnvironment
+from job import Job
 from job_definition import JobDefinition
 from job_queue import JobQueue
 from json_configuration import *
@@ -146,7 +147,14 @@ def register_job_definition():
 
 @app.route("/submitjob", methods=["POST"])
 def submit_job():
-    pass
+    job = Job()
+    jobs["new"] = job
+    job.start()
+    res = {}
+    for jobi in jobs.values():
+        print(repr(jobi))
+        res["new"] = repr(jobi)
+    return jsonify(res)
 
 
 @app.route("/terminatejob", methods=["POST"])
@@ -162,6 +170,15 @@ def update_compute_environment():
 @app.route("/updatejobqueue", methods=["POST"])
 def update_job_queue():
     pass
+
+
+@app.route("/getinfos", methods=["GET"])
+def get_infos():
+    res = {}
+    for job in jobs.values():
+        print(repr(job))
+        res["new"] = repr(job)
+    return jsonify(res)
 
 
 if __name__ == "__main__":
