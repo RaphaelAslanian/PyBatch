@@ -1,5 +1,4 @@
-from schema import Schema, Optional
-
+from schema import Schema, Optional, And
 
 CONFIG_CANCEL_JOB = Schema(
     {
@@ -137,7 +136,7 @@ CONFIG_REGISTER_JOB_DEFINITION = Schema(
         Optional("parameters"): {str: str},
         Optional("retryStrategy"): Schema({"attempts": int}),
         Optional("timeout"): Schema({"attemptDurationSeconds": int}),
-        "type": str
+        "type": And(str, lambda x: x in ("container", "multinode"))
     },
     ignore_extra_keys=False
 )
