@@ -1,5 +1,6 @@
 import json
 from _blake2 import blake2b
+from time import sleep
 
 from flask import Flask, request, jsonify
 from schema import SchemaError
@@ -12,6 +13,7 @@ from job_queue import JobQueue
 from json_configuration import *
 
 # ToDo: Gérer les certificats SSL
+# ToDo: Implement orders inside queues - compute environments
 
 
 app = Flask(__name__)
@@ -34,6 +36,7 @@ def create_compute_environment():
     if data["computeEnvironmentName"] in compute_environments:
         abort(400, "Compute environment already exists.")
     compute_environments[data["computeEnvironmentName"]] = ComputeEnvironment(**data)
+    compute_environments[data["computeEnvironmentName"]].start()
     return jsonify(
         {
             "computeEnvironmentArn": data["computeEnvironmentName"],
@@ -52,7 +55,7 @@ def create_job_queue():
     for ce in data["computeEnvironmentOrder"]:
         if ce["computeEnvironment"] not in compute_environments:
             abort(400, f"Compute environment {ce} does not exist")
-        if compute_environments[ce["computeEnvironment"]].state != "ENABLED":
+        if compute_environments[ce["computeEnvironment"]].state != ComputeEnvironment.State.ENABLED:
             abort(400, f"Compute environment {ce} is not enabled.")
     if not (0 < len(data["computeEnvironmentOrder"]) < 3):
         abort(400, f"Invalid number ({len(data['computeEnvironmentOrder'])}) of compute environments selected")
@@ -62,7 +65,11 @@ def create_job_queue():
             abort(400, f"Two compute environments have the same order.")
         orders.add(ce["order"])
     # Action
-    job_queues[data["jobQueueName"]] = JobQueue(**data)
+    job_queue = JobQueue(**data)
+    job_queues[data["jobQueueName"]] = job_queue
+    for ce in compute_environments.values():
+        if ce.computeEnvironmentName in [computeEnv["computeEnvironment"] for computeEnv in data["computeEnvironmentOrder"]]:
+            ce.add_queue(job_queue)
     return jsonify({"jobQueueArn": data["jobQueueName"], "jobQueueName": data["jobQueueName"]})
 
 
@@ -72,7 +79,7 @@ def delete_compute_environment():
     CONFIG_DELETE_COMPUTE_ENVIRONMENT.validate(data)
     if data["computeEnvironment"] not in compute_environments:
         abort(400, "Compute environment does not exist.")
-    if compute_environments[data["computeEnvironment"]].state != "DISABLED":
+    if compute_environments[data["computeEnvironment"]].state != ComputeEnvironment.State.DISABLED:
         abort(400, "Compute environment is not disabled.")
     for jq in job_queues.values():
         if data["computeEnvironment"] in [ce_jq["computeEnvironment"] for ce_jq in jq["computeEnvironmentOrder"]]:
@@ -87,7 +94,11 @@ def delete_job_queue():
     CONFIG_DELETE_JOB_QUEUE.validate(data)
     if data["jobQueue"] not in job_queues:
         abort(400, "Job queue does not exist")
-    job_queues.pop(data["jobQueueName"])
+    queue_to_remove = job_queues[data["jobQueue"]]
+    for ce in compute_environments.values():
+        if queue_to_remove in ce.queues:
+            ce.remove_queue(queue_to_remove)
+    job_queues.pop(queue_to_remove)
     return jsonify({})
 
 
@@ -103,13 +114,13 @@ def deregister_job_definition():
 
 @app.route("/v1/describecomputeenvironments", methods=["POST"])
 def describe_compute_environments():
-    res = [repr(val) for val in compute_environments.values()]
-    res = {"computeEnvironments": res, "nextToken": "nextToken"}
-    return jsonify(res)
+    print(compute_environments)
+    return jsonify({"computeEnvironments": [], "nextToken": "nextToken"})
 
 
 @app.route("/v1/describejobdefinitions", methods=["POST"])
 def describe_job_definitions():
+    print(job_definitions)
     res = [repr(val) for val in job_definitions.values()]
     res = {"jobDefinitions": res, "nextToken": "nextToken"}
     return jsonify(res)
@@ -117,6 +128,7 @@ def describe_job_definitions():
 
 @app.route("/v1/describejobqueues", methods=["POST"])
 def desbribe_job_queues():
+    print(job_queues)
     res = [repr(val) for val in job_queues.values()]
     res = {"jobQueues": res, "nextToken": "nextToken"}
     return jsonify(res)
@@ -145,16 +157,20 @@ def register_job_definition():
     return jsonify({})
 
 
-@app.route("/submitjob", methods=["POST"])
+@app.route("/v1/submitjob", methods=["POST"])
 def submit_job():
-    job = Job()
-    jobs["new"] = job
-    job.start()
-    res = {}
-    for jobi in jobs.values():
-        print(repr(jobi))
-        res["new"] = repr(jobi)
-    return jsonify(res)
+    data = json.loads(request.data, encoding="utf-8")
+    try:
+        CONFIG_SUBMIT_JOB.validate(data)
+    except SchemaError as se:
+        abort(400, f"Invalid request {se}")
+    if data["jobDefinition"] not in job_definitions:
+        abort(400, f"Job definition {data['jobDefinition']} does not exist.")
+    if data["jobQueue"] not in job_queues:
+        abort(400, f"Job queue {data['jobQueue']} does not exist.")
+    data["jobDefinitionData"] = job_definitions[data["jobDefinition"]]
+    job_queues[data["jobQueue"]].put_nowait(Job(**data))
+    return jsonify({})
 
 
 @app.route("/terminatejob", methods=["POST"])
@@ -182,10 +198,16 @@ def get_infos():
 
 
 if __name__ == "__main__":
+    exit_flag = False
     compute_environments = {}
     job_queues = {}
     job_definitions = {}
     jobs = {}
-    # app.run(ssl_context=('server.crt', 'server.key'))
-    # app.run(ssl_context=('cert.pem', 'key.pem'))
-    app.run(debug=True, threaded=True)
+    try:
+        # app.run(ssl_context=('server.crt', 'server.key'))
+        # app.run(ssl_context=('cert.pem', 'key.pem'))
+        app.run(debug=True, threaded=True)
+    except KeyboardInterrupt:
+        for ce in compute_environments.values():
+            print("Killing")
+            ce._need_stop.set()

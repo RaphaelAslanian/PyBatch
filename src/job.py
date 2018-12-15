@@ -13,13 +13,15 @@ class Job(Thread):
 
     def __init__(self, *args, **kwargs):
         Thread.__init__(self)
+        for key, val in kwargs.items():
+            setattr(self, key, val)
         self.state = self.STATE.CREATED
         self.container = None
 
     def run(self):
         self.state = self.STATE.RUNNING
         docker_client = docker.from_env()
-        self.container = docker_client.containers.run("hello-world", remove=True)
+        self.container = docker_client.containers.run(self.jobDefinitionData.containerProperties["image"])
         self.state = self.STATE.SUCCEEDED
 
     def __repr__(self):

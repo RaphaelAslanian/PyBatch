@@ -1,12 +1,13 @@
 import json
 from enum import Enum
+from queue import PriorityQueue
 
 
-class JobQueue:
+class JobQueue(PriorityQueue):
 
-    def __init__(self, **kwargs):
-        for key, val in kwargs.items():
-            setattr(self, key, val)
+    def __init__(self, jobQueueName, priority, **kwargs):
+        PriorityQueue.__init__(self)
+        self.jobQueueName = jobQueueName
+        self.priority = priority
 
-    def __repr__(self):
-        return json.dumps(self.__dict__)
+

@@ -29,7 +29,7 @@ CONFIG_CREATE_COMPUTE_ENVIRONMENT = Schema(
         ),
         "serviceRole": str,
         Optional("state"): str,
-        "type": str
+        "type": And(str, lambda x: x in ("MANAGED", "UNMANAGED"))
     },
     ignore_extra_keys=False
 )
@@ -46,7 +46,7 @@ CONFIG_CREATE_JOB_QUEUE = Schema(
         ],
         "jobQueueName": str,
         "priority": int,
-        Optional("state"): str,
+        Optional("state"):  And(str, lambda x: x in ("ENABLED", "DISABLED")),
     },
     ignore_extra_keys=False
 )
