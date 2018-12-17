@@ -14,7 +14,7 @@ class ComputeEnvironment(Thread, StoppableThread, SchemaConstructor):
 
     def __init__(self, **kwargs):
         Thread.__init__(self)
-        StoppableThread.__init__(self, False)
+        StoppableThread.__init__(self, setted=False)
         SchemaConstructor.__init__(self, CONFIG_CREATE_COMPUTE_ENVIRONMENT)
         for key, val in kwargs.items():
             setattr(self, key, val)
