@@ -1,13 +1,15 @@
 import json
 from enum import Enum
-from queue import PriorityQueue
+from queue import Queue
+
+from json_configuration import CONFIG_CREATE_JOB_QUEUE
+from schema_constructor import SchemaConstructor
 
 
-class JobQueue(PriorityQueue):
+class JobQueue(Queue, SchemaConstructor):
 
-    def __init__(self, jobQueueName, priority, **kwargs):
-        PriorityQueue.__init__(self)
-        self.jobQueueName = jobQueueName
-        self.priority = priority
-
-
+    def __init__(self, **kwargs):
+        Queue.__init__(self)
+        SchemaConstructor.__init__(self, schema=CONFIG_CREATE_JOB_QUEUE)
+        for key, val in kwargs.items():
+            setattr(self, key, val)
