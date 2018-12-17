@@ -55,7 +55,7 @@ def create_job_queue():
     for ce in data["computeEnvironmentOrder"]:
         if ce["computeEnvironment"] not in compute_environments:
             abort(400, f"Compute environment {ce} does not exist")
-        if compute_environments[ce["computeEnvironment"]].state != ComputeEnvironment.State.ENABLED:
+        if compute_environments[ce["computeEnvironment"]].state != ComputeEnvironment.STATE_ENABLED:
             abort(400, f"Compute environment {ce} is not enabled.")
     if not (0 < len(data["computeEnvironmentOrder"]) < 3):
         abort(400, f"Invalid number ({len(data['computeEnvironmentOrder'])}) of compute environments selected")
@@ -208,6 +208,8 @@ if __name__ == "__main__":
         # app.run(ssl_context=('cert.pem', 'key.pem'))
         app.run(debug=True, threaded=True)
     except KeyboardInterrupt:
+        pass
+    finally:
         for ce in compute_environments.values():
             print("Killing")
-            ce._need_stop.set()
+            ce.stop_event.set()
