@@ -1,4 +1,5 @@
 import queue
+from asyncio import QueueFull
 from collections import deque
 from threading import Thread
 
@@ -18,10 +19,10 @@ class ComputeEnvironment(Thread, StoppableThread, SchemaConstructor):
         SchemaConstructor.__init__(self, CONFIG_CREATE_COMPUTE_ENVIRONMENT)
         for key, val in kwargs.items():
             setattr(self, key, val)
-        setattr(self, "state", self.STATE_ENABLED)
-        self.__associated_queues = []
+        self.state = self.STATE_ENABLED
+        self.__associated_queue = queue.PriorityQueue(maxsize=4)  # Compute maxsize as parameter of CE power
         self.__jobs_current = []
-        self.__jobs_done = deque(maxlen=30)
+        self.__jobs_done = deque()  # Add Max Len for limiting logs
 
     def run(self):
         while not self.stop_event.wait(timeout=1):
@@ -32,22 +33,20 @@ class ComputeEnvironment(Thread, StoppableThread, SchemaConstructor):
                         self.__jobs_done.append(self.__jobs_current.pop(idx))
                         break
                 # Take new jobs
-                for q in self.__associated_queues:
-                    try:
-                        job = q.get_nowait()
-                        self.__jobs_current.append(job)
-                        job.start()
-                        break
-                    except queue.Empty:
-                        continue
+                try:
+                    job = self.__associated_queue.get_nowait()
+                    self.__jobs_current.append(job)
+                    job.start()
+                    break
+                except queue.Empty:
+                    continue
 
-    def add_queue(self, queue):
-        # TODO: possibility to insert here instead of appending
-        self.__associated_queues.append(queue)
+    def is_enabled(self):
+        return self.state == self.STATE_ENABLED
 
-    def remove_queue(self, queue):
-        self.__associated_queues.remove(queue)
+    def has_capacity(self):
+        return not self.__associated_queue.full()
 
-    def __repr__(self):
-        return self.computeEnvironmentName
+    def add_job(self, job):
+        self.__associated_queue.put_nowait(job)
 

@@ -1,6 +1,5 @@
 import json
 from _blake2 import blake2b
-from time import sleep
 
 from flask import Flask, request, jsonify
 from schema import SchemaError
@@ -13,8 +12,20 @@ from job_queue import JobQueue
 from json_configuration import *
 
 # ToDo: Gérer les certificats SSL
-# ToDo: Implement orders inside queues - compute environments
+# ToDo: Implement orders inside queues - compute environments (Almost done)
+# ToDO: Kill threads
+# ToDo: return coherent values for AWS calls
+# ToDo: add documentation
+# ToDo: add tests
+# ToDo: add README
+# ToDo: add Dockerfile
+# ToDO: add login
+# ToDo: add UI
+# ToDo: add linter
+# ToDo: possible ThreadPool somewhere ?
 
+
+from scheduler import Scheduler
 
 app = Flask(__name__)
 
@@ -65,11 +76,7 @@ def create_job_queue():
             abort(400, f"Two compute environments have the same order.")
         orders.add(ce["order"])
     # Action
-    job_queue = JobQueue(**data)
-    job_queues[data["jobQueueName"]] = job_queue
-    for ce in compute_environments.values():
-        if ce.computeEnvironmentName in [computeEnv["computeEnvironment"] for computeEnv in data["computeEnvironmentOrder"]]:
-            ce.add_queue(job_queue)
+    job_queues[data["jobQueueName"]] = JobQueue(**data)
     return jsonify({"jobQueueArn": data["jobQueueName"], "jobQueueName": data["jobQueueName"]})
 
 
@@ -198,11 +205,12 @@ def get_infos():
 
 
 if __name__ == "__main__":
-    exit_flag = False
     compute_environments = {}
     job_queues = {}
     job_definitions = {}
     jobs = {}
+    scheduler = Scheduler(job_queues, compute_environments)
+    scheduler.start()
     try:
         # app.run(ssl_context=('server.crt', 'server.key'))
         # app.run(ssl_context=('cert.pem', 'key.pem'))
@@ -210,6 +218,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
     finally:
+        scheduler.stop_event.set()
         for ce in compute_environments.values():
-            print("Killing")
             ce.stop_event.set()

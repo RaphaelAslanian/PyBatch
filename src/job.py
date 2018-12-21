@@ -1,9 +1,11 @@
 from threading import Thread
 import docker
+from flask import logging
 
 
 class Job(Thread):
 
+    STATE_SUBMITTED = "SUBMITTED"
     STATE_CREATED = "CREATED"
     STATE_RUNNING = "RUNNING"
     STATE_SUCCEEDED = "SUCCEEDED"
@@ -13,7 +15,7 @@ class Job(Thread):
         Thread.__init__(self)
         for key, val in kwargs.items():
             setattr(self, key, val)
-        self.state = self.STATE_CREATED
+        self.state = self.STATE_SUBMITTED
 
     def run(self):
         self.state = self.STATE_RUNNING
@@ -28,5 +30,4 @@ class Job(Thread):
         else:
             self.state = self.STATE_FAILED
 
-    def __repr__(self):
-        return f"My state is {self.state}"
+
