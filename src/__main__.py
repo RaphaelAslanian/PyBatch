@@ -23,16 +23,14 @@ from json_configuration import *
 # ToDo: add UI
 # ToDo: add linter
 # ToDo: possible ThreadPool somewhere ?
+# ToDo: handle tokens
+# ToDo: handle multiNode jobs
+# ToDo: handle arrayJob
 
 
 from scheduler import Scheduler
 
 app = Flask(__name__)
-
-
-@app.route('/', methods=["GET"])
-def home_page():
-    return "Hello World !", 200
 
 
 @app.route("/v1/canceljob", methods=["POST"])
@@ -43,24 +41,22 @@ def cancel_job():
 @app.route("/v1/createcomputeenvironment", methods=["POST"])
 def create_compute_environment():
     data = json.loads(request.data, encoding="utf-8")
+    # Check
     CONFIG_CREATE_COMPUTE_ENVIRONMENT.validate(data)
     if data["computeEnvironmentName"] in compute_environments:
         abort(400, "Compute environment already exists.")
-    compute_environments[data["computeEnvironmentName"]] = ComputeEnvironment(**data)
-    compute_environments[data["computeEnvironmentName"]].start()
-    return jsonify(
-        {
-            "computeEnvironmentArn": data["computeEnvironmentName"],
-            "computeEnvironmentName": data["computeEnvironmentName"]
-        }
-    )
+    # Action
+    new_compute_environment = ComputeEnvironment(**data)
+    compute_environments[data["computeEnvironmentName"]] = new_compute_environment
+    new_compute_environment.start()
+    return jsonify(new_compute_environment.describe(everything=False))
 
 
 @app.route("/v1/createjobqueue", methods=["POST"])
 def create_job_queue():
     data = json.loads(request.data, encoding="utf-8")
-    CONFIG_CREATE_JOB_QUEUE.validate(data)
     # Checks
+    CONFIG_CREATE_JOB_QUEUE.validate(data)
     if data["jobQueueName"] in job_queues:
         abort(400, "Job queue already exists.")
     for ce in data["computeEnvironmentOrder"]:
@@ -76,8 +72,9 @@ def create_job_queue():
             abort(400, f"Two compute environments have the same order.")
         orders.add(ce["order"])
     # Action
-    job_queues[data["jobQueueName"]] = JobQueue(**data)
-    return jsonify({"jobQueueArn": data["jobQueueName"], "jobQueueName": data["jobQueueName"]})
+    new_job_queue = JobQueue(**data)
+    job_queues[data["jobQueueName"]] = new_job_queue
+    return jsonify(new_job_queue.describe(everything=False))
 
 
 @app.route("/v1/deletecomputeenvironment", methods=["POST"])
@@ -86,7 +83,7 @@ def delete_compute_environment():
     CONFIG_DELETE_COMPUTE_ENVIRONMENT.validate(data)
     if data["computeEnvironment"] not in compute_environments:
         abort(400, "Compute environment does not exist.")
-    if compute_environments[data["computeEnvironment"]].state != ComputeEnvironment.State.DISABLED:
+    if compute_environments[data["computeEnvironment"]].state != ComputeEnvironment.STATE_DISABLED:
         abort(400, "Compute environment is not disabled.")
     for jq in job_queues.values():
         if data["computeEnvironment"] in [ce_jq["computeEnvironment"] for ce_jq in jq["computeEnvironmentOrder"]]:
@@ -101,43 +98,66 @@ def delete_job_queue():
     CONFIG_DELETE_JOB_QUEUE.validate(data)
     if data["jobQueue"] not in job_queues:
         abort(400, "Job queue does not exist")
-    queue_to_remove = job_queues[data["jobQueue"]]
-    for ce in compute_environments.values():
-        if queue_to_remove in ce.queues:
-            ce.remove_queue(queue_to_remove)
-    job_queues.pop(queue_to_remove)
+    job_queues.pop(job_queues[data["jobQueue"]])
     return jsonify({})
 
 
 @app.route("/v1/deregisterjobdefinition", methods=["POST"])
 def deregister_job_definition():
+    # ToDo: data sent must be of format 'jobDefinitionName:revision' --> needs checking OR Arn
     data = json.loads(request.data, encoding="utf-8")
+    # Checks
     CONFIG_DEREGISTER_JOB_DEFINITION.validate(data)
-    if data["jobDefinition"] not in job_definitions:
-        abort(400, "Job definition does not exist.")
-    job_definitions.pop(data["jobDefinition"])
+    job_definition_name, revision_to_remove = data["jobDefinition"].split(":")
+    revision_to_remove = int(revision_to_remove)
+    if job_definition_name not in job_definitions:
+        abort(400, "Job Definition does not exist")
+    if revision_to_remove not in [jd.revision for jd in job_definitions[job_definition_name]]:
+        abort(400, "Revision of this job definition does not exist")
+    to_remove = None
+    for jd in job_definitions[job_definition_name]:
+        if jd.revision == revision_to_remove:
+            to_remove = jd
+            break
+    job_definitions[job_definition_name].remove(to_remove)
     return jsonify({})
 
 
 @app.route("/v1/describecomputeenvironments", methods=["POST"])
 def describe_compute_environments():
-    print(compute_environments)
-    return jsonify({"computeEnvironments": [], "nextToken": "nextToken"})
+    data = json.loads(request.data, encoding="utf-8")
+    CONFIG_DESCRIBE_COMPUTE_ENVIRONMENTS.validate(data)
+    if data["computeEnvironments"]:
+        ce_to_describe = [compute_environments[ce_name].describe(everything=True)
+                          for ce_name in data["computeEnvironments"] if ce_name in compute_environments]
+    else:
+        ce_to_describe = [ce.describe() for ce in compute_environments.values()]
+    res = {"computeEnvironments": ce_to_describe, "nextToken": "nextToken"}
+    return jsonify(res)
 
 
 @app.route("/v1/describejobdefinitions", methods=["POST"])
 def describe_job_definitions():
-    print(job_definitions)
-    res = [repr(val) for val in job_definitions.values()]
-    res = {"jobDefinitions": res, "nextToken": "nextToken"}
+    data = json.loads(request.data, encoding="utf-8")
+    CONFIG_DESCRIBE_JOB_DEFINITIONS.validate(data)
+    if data["jobDefinitions"]:
+        jd_to_describe = [job_definitions[jd_name] for jd_name in data["jobDefinitions"] if jd_name in job_definitions]
+    else:
+        jd_to_describe = job_definitions.values()
+    jds = [revision.describe(everything=True) for jd in jd_to_describe for revision in jd]
+    res = {"jobDefinitions": jds, "nextToken": "nextToken"}
     return jsonify(res)
 
 
 @app.route("/v1/describejobqueues", methods=["POST"])
-def desbribe_job_queues():
-    print(job_queues)
-    res = [repr(val) for val in job_queues.values()]
-    res = {"jobQueues": res, "nextToken": "nextToken"}
+def describe_job_queues():
+    data = json.loads(request.data, encoding="utf-8")
+    CONFIG_DESCRIBE_JOB_QUEUES.validate(data)
+    if data["jobQueues"]:
+        queues_to_describe = [job_queues[queue_name].describe(everything=True) for queue_name in data["jobQueues"] if queue_name in job_queues]
+    else:
+        queues_to_describe = [queue.describe(everything=True) for queue in job_queues.values()]
+    res = {"jobQueues": queues_to_describe, "nextToken": "nextToken"}
     return jsonify(res)
 
 
@@ -146,9 +166,15 @@ def describe_jobs():
     pass
 
 
-@app.route("/listjobs", methods=["POST"])
+@app.route("/v1/listjobs", methods=["POST"])
 def list_jobs():
-    pass
+    data = json.loads(request.data, encoding="utf-8")
+    CONFIG_LIST_JOBS.validate(data)
+    if data["jobQueue"] not in job_queues:
+        abort(400, "Job queue does not exist")
+    job_summary_list = [job.summary() for job in jobs.values() if job.jobQueue == data["jobQueue"]]
+    res = {"jobSummaryList": job_summary_list, "nextToken": "nextToken"}
+    return jsonify(res)
 
 
 @app.route("/v1/registerjobdefinition", methods=["POST"])
@@ -158,10 +184,16 @@ def register_job_definition():
         CONFIG_REGISTER_JOB_DEFINITION.validate(data)
     except SchemaError as se:
         abort(400, f"Invalid request {se}")
+    # Action
     if data["jobDefinitionName"] in job_definitions:
-        abort(400, "Job definition does exist")
-    job_definitions[data["jobDefinitionName"]] = JobDefinition(**data)
-    return jsonify({})
+        new_job_revision = len(job_definitions[data["jobDefinitionName"]]) + 1
+        new_job = JobDefinition(revision=new_job_revision, **data)
+        job_definitions[data["jobDefinitionName"]].append(new_job)
+    else:
+        new_job_revision = 1
+        new_job = JobDefinition(revision=new_job_revision, **data)
+        job_definitions[data["jobDefinitionName"]] = [new_job]
+    return jsonify(new_job.describe(everything=False))
 
 
 @app.route("/v1/submitjob", methods=["POST"])
@@ -175,8 +207,10 @@ def submit_job():
         abort(400, f"Job definition {data['jobDefinition']} does not exist.")
     if data["jobQueue"] not in job_queues:
         abort(400, f"Job queue {data['jobQueue']} does not exist.")
-    data["jobDefinitionData"] = job_definitions[data["jobDefinition"]]
-    job_queues[data["jobQueue"]].put_nowait(Job(**data))
+    data["jobDefinitionData"] = job_definitions[data["jobDefinition"]][-1]
+    job = Job(**data)
+    jobs[data["jobDefinition"]] = job
+    job_queues[data["jobQueue"]].put_nowait(job)
     return jsonify({})
 
 
@@ -193,15 +227,6 @@ def update_compute_environment():
 @app.route("/updatejobqueue", methods=["POST"])
 def update_job_queue():
     pass
-
-
-@app.route("/getinfos", methods=["GET"])
-def get_infos():
-    res = {}
-    for job in jobs.values():
-        print(repr(job))
-        res["new"] = repr(job)
-    return jsonify(res)
 
 
 if __name__ == "__main__":

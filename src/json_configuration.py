@@ -1,4 +1,4 @@
-from schema import Schema, Optional, And
+from schema import Schema, Optional, And, Regex
 
 CONFIG_CANCEL_JOB = Schema(
     {
@@ -25,6 +25,7 @@ CONFIG_CREATE_COMPUTE_ENVIRONMENT = Schema(
                 "spotIamFleetRole": str,
                 "subnets": [str],
                 "tags": {str: str},
+                "type": str,
             }
         ),
         "serviceRole": str,
@@ -74,8 +75,8 @@ CONFIG_DEREGISTER_JOB_DEFINITION = Schema(
 
 CONFIG_DESCRIBE_COMPUTE_ENVIRONMENTS = Schema(
     {
-        Optional("computeEnvironments"): [str],
-        Optional("maxResults"): int,
+        Optional("computeEnvironments"): And([str], lambda x: len(x) <= 100),
+        Optional("maxResults"): And(int, lambda x: 0 < x <= 100),
         Optional("nextToken"): str,
     },
     ignore_extra_keys=False
@@ -107,8 +108,9 @@ CONFIG_LIST_JOBS = Schema(
     {
        Optional("arrayJobId"): str,
        Optional("jobQueue"): str,
-       Optional("jobStatus"): str,
-       Optional("maxResults"): int,
+       Optional("jobStatus"): And(str, lambda x: x in ("SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING", "SUCCEEDED", "FAILED")),
+       Optional("maxResults"): And(int, lambda x: 0 < x <= 100),
+       Optional("multiNodeJobId"): str,
        Optional("nextToken"): str,
     },
     ignore_extra_keys=False
@@ -130,6 +132,36 @@ CONFIG_REGISTER_JOB_DEFINITION = Schema(
                 "user": str,
                 "vcpus": int,
                 "volumes": [Schema({"host": Schema({"sourcePath": str}), "name": str})],
+            }
+        ),
+        Optional("nodeProperties"): Schema(
+            {
+                "mainNode": int,
+                "nomNodes": int,
+                "nodeRangeProperties": [
+                    Schema(
+                        {
+                            Optional("container"): Schema(
+                                {
+                                    "command": [str],
+                                    "environment": [Schema({"name": str, "value": str})],
+                                    "image": str,
+                                    "jobRoleArn": str,
+                                    "memory": int,
+                                    "mountPoints": [
+                                        Schema({"containerPath": str, "readOnly": bool, "sourceVolume": str})],
+                                    "privileged": bool,
+                                    "readonlyRootFilesystem": bool,
+                                    "ulimits": [Schema({"hardLimit": int, "name": str, "softLimit": int})],
+                                    "user": str,
+                                    "vcpus": int,
+                                    "volumes": [Schema({"host": Schema({"sourcePath": str}), "name": str})],
+                                },
+                            ),
+                            "targetNodes": str
+                        }
+                    )
+                ]
             }
         ),
         "jobDefinitionName": str,

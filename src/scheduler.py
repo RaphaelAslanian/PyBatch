@@ -1,6 +1,5 @@
 from asyncio import QueueFull
 
-from compute_environment import ComputeEnvironment
 from stoppable_thread import StoppableThread
 from threading import Thread
 
@@ -8,12 +7,21 @@ from threading import Thread
 class Scheduler(Thread, StoppableThread):
 
     def __init__(self, queues, compute_environments):
+        """
+
+        :param queues:
+        :param compute_environments:
+        """
         Thread.__init__(self)
         StoppableThread.__init__(self, setted=False)
         self.__queues = queues
         self.__compute_environments = compute_environments
 
     def run(self):
+        """
+
+        :return:
+        """
         while not self.stop_event.wait(timeout=0.1):
             for q in self.__queues.values():
                 if not q.empty():
