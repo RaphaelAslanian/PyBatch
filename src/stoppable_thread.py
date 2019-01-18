@@ -1,7 +1,7 @@
 from threading import Event
 
 
-class StoppableThread   :
+class StoppableThread:
 
     def __init__(self, setted: bool):
         self.stop_event = Event()

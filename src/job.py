@@ -27,20 +27,31 @@ class Job(Thread):
         self.__created_at = datetime.datetime.now()
         self.__started_at = None
         self.__stopped_at = None
+        self.__container = None
 
     def run(self):
         self.state = self.STATE_RUNNING
         self.__started_at = datetime.datetime.now()
         docker_client = docker.from_env()
-        container = docker_client.containers.run(
-            self.jobDefinitionData.containerProperties["image"],
+        self.__container = docker_client.containers.run(
+            command=self.containerOverrides["command"] if self.containerOverrides else self.jobDefinitionData.containerProperties["command"],
+            image=self.containerOverrides["command"] if self.containerOverrides else self.jobDefinitionData.containerProperties["image"],
+            environment=self.containerOverrides["environment"] if self.containerOverrides else self.jobDefinitionData.containerProperties["environment"],
+            user=self.jobDefinitionData.containerProperties["user"],
+            privileged=self.jobDefinitionData.containerProperties["privileged"],
+            volumes=self.jobDefinitionData.containerProperties["volumes"],
+            read_only=self.jobDefinitionData.containerProperties["readonlyRootFilesystem"],
+            mem_limit=self.jobDefinitionData.containerProperties["memory"],
             remove=True,
             detach=True
-        ).wait()
-        if container["StatusCode"] == 0:
-            self.state = self.STATE_SUCCEEDED
-        else:
-            self.state = self.STATE_FAILED
+        )
+        result = self.__container.wait()
+        self.__stopped_at = datetime.datetime.now()
+        self.state = self.STATE_SUCCEEDED if result["StatusCode"] == 0 else self.STATE_FAILED
+
+    def stop(self):
+        if self.__container:
+            self.__container.kill()
 
     def __lt__(self, other):
         return self.priority < other.prioriy
@@ -59,3 +70,4 @@ class Job(Thread):
             "jobName": self.jobName,
             "status": self.state
         }
+
