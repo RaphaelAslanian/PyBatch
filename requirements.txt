@@ -16,7 +16,10 @@ itsdangerous==0.24
 Jinja2==2.10
 jmespath==0.9.3
 MarkupSafe==1.0
+mccabe==0.6.1
+pycodestyle==2.4.0
 pycparser==2.19
+pyflakes==2.0.0
 pyOpenSSL==18.0.0
 python-dateutil==2.7.3
 requests==2.21.0
