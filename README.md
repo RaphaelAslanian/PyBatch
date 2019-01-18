@@ -1,4 +1,5 @@
 # PyBatch
+[![Build Status](https://travis-ci.com/RaphaelAslanian/PyBatch.svg?branch=develop)](https://travis-ci.com/RaphaelAslanian/PyBatch)
 
 This project aims at mocking AWS Batch for local development purposes.
 PyBatch reproduces AWS Batch internal logic so that the developer can test the different AWS Batch API calls locally.
