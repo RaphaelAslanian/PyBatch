@@ -239,7 +239,7 @@ if __name__ == "__main__":
     try:
         # app.run(ssl_context=('server.crt', 'server.key'))
         # app.run(ssl_context=('cert.pem', 'key.pem'))
-        app.run(debug=True, threaded=True)
+        app.run(debug=True, threaded=True, host="0.0.0.0")
     except KeyboardInterrupt:
         pass
     finally:
