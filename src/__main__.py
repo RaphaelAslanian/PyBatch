@@ -1,5 +1,7 @@
 import json
+import logging
 
+import coloredlogs
 from flask import Flask, request, jsonify
 from schema import SchemaError
 from werkzeug.exceptions import abort
@@ -18,6 +20,7 @@ from json_configuration import CONFIG_CREATE_COMPUTE_ENVIRONMENT, CONFIG_CREATE_
 # ToDO: Kill threads
 # ToDo: return coherent values for AWS calls
 # ToDo: add documentation
+# ToDo: handle dependencies
 # ToDo: add tests
 # ToDO: add login
 # ToDo: add UI
@@ -233,6 +236,8 @@ def update_job_queue():
 
 
 if __name__ == "__main__":
+    coloredlogs.install(level="INFO", fmt="%(asctime)s %(name)s %(levelname)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S")
+    logger = logging.getLogger("MainApplication")
     compute_environments = {}
     job_queues = {}
     job_definitions = {}

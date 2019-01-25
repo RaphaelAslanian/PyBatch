@@ -22,7 +22,7 @@ c = client.register_job_definition(
         "privileged": False,
         "readonlyRootFilesystem": False,
         "ulimits": [],
-        "user": "RaphaelAslanian",
+        "user": "",
         "vcpus": 0,
         "volumes": []
     }
@@ -48,7 +48,7 @@ c = client.register_job_definition(
         "privileged": False,
         "readonlyRootFilesystem": False,
         "ulimits": [],
-        "user": "RaphaelAslanian",
+        "user": "",
         "vcpus": 0,
         "volumes": []
     }
