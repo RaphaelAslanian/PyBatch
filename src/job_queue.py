@@ -1,9 +1,9 @@
 from queue import Queue
-from typing import List
+from typing import List, Dict
 
 from json_configuration import CONFIG_CREATE_JOB_QUEUE
 from schema_constructor import SchemaConstructor
-from arn_dict import ARNObject
+from arn_object import ARNObject
 
 
 class JobQueue(Queue, SchemaConstructor, ARNObject):
@@ -30,7 +30,7 @@ class JobQueue(Queue, SchemaConstructor, ARNObject):
         sorted_compute_envs = sorted(self.computeEnvironmentOrder, key=lambda x: x["order"])
         return [ce["computeEnvironment"] for ce in sorted_compute_envs]
 
-    def describe(self, everything: bool = False):
+    def describe(self, everything: bool = False) -> Dict[str, str]:
         # ToDo: status and statusReason are not mandatory, check parameters in api reference
         if not everything:
             return {

@@ -19,8 +19,6 @@ from json_configuration import CONFIG_CREATE_COMPUTE_ENVIRONMENT, CONFIG_CREATE_
 # ToDo: return coherent values for AWS calls
 # ToDo: add documentation
 # ToDo: add tests
-# ToDo: add README
-# ToDo: add Dockerfile
 # ToDO: add login
 # ToDo: add UI
 # ToDo: add linter
