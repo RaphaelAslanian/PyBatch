@@ -23,7 +23,12 @@ class Job(Thread):
 
     def __init__(self, **kwargs):
         Thread.__init__(self)
-        SchemaConstructor.__init__(self, schema=CONFIG_SUBMIT_JOB, default_values=self.DEFAULT_VALUES, defined_values=kwargs)
+        SchemaConstructor.__init__(
+            self,
+            schema=CONFIG_SUBMIT_JOB,
+            default_values=self.DEFAULT_VALUES,
+            defined_values=kwargs
+        )
         self.__created_at = datetime.datetime.now()
         self.__started_at = None
         self.__stopped_at = None
@@ -33,10 +38,16 @@ class Job(Thread):
         self.state = self.STATE_RUNNING
         self.__started_at = datetime.datetime.now()
         docker_client = docker.from_env()
+        command = self.containerOverrides["command"] if self.containerOverrides \
+            else self.jobDefinitionData.containerProperties["command"]
+        image = self.containerOverrides["command"] if self.containerOverrides \
+            else self.jobDefinitionData.containerProperties["image"]
+        environment = self.containerOverrides["environment"] if self.containerOverrides \
+            else self.jobDefinitionData.containerProperties["environment"]
         self.__container = docker_client.containers.run(
-            command=self.containerOverrides["command"] if self.containerOverrides else self.jobDefinitionData.containerProperties["command"],
-            image=self.containerOverrides["command"] if self.containerOverrides else self.jobDefinitionData.containerProperties["image"],
-            environment=self.containerOverrides["environment"] if self.containerOverrides else self.jobDefinitionData.containerProperties["environment"],
+            command=command,
+            image=image,
+            environment=environment,
             user=self.jobDefinitionData.containerProperties["user"],
             privileged=self.jobDefinitionData.containerProperties["privileged"],
             volumes=self.jobDefinitionData.containerProperties["volumes"],
@@ -70,4 +81,3 @@ class Job(Thread):
             "jobName": self.jobName,
             "status": self.state
         }
-

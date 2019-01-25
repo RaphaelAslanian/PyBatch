@@ -17,7 +17,12 @@ class JobQueue(Queue, SchemaConstructor, ARNObject):
 
     def __init__(self, **kwargs):
         Queue.__init__(self)
-        SchemaConstructor.__init__(self, schema=CONFIG_CREATE_JOB_QUEUE, default_values=self.DEFAULT_VALUES, defined_values=kwargs)
+        SchemaConstructor.__init__(
+            self,
+            schema=CONFIG_CREATE_JOB_QUEUE,
+            default_values=self.DEFAULT_VALUES,
+            defined_values=kwargs
+        )
         ARNObject.__init__(self, name=self.jobQueueName, resource="job-queue/" + self.jobQueueName)
 
     def get_ordered_compute_environments(self) -> List[str]:

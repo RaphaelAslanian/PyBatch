@@ -1,4 +1,4 @@
-from schema import Schema, Optional, And, Regex
+from schema import Schema, Optional, And
 
 CONFIG_CANCEL_JOB = Schema(
     {
@@ -108,7 +108,9 @@ CONFIG_LIST_JOBS = Schema(
     {
        Optional("arrayJobId"): str,
        Optional("jobQueue"): str,
-       Optional("jobStatus"): And(str, lambda x: x in ("SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING", "SUCCEEDED", "FAILED")),
+       Optional("jobStatus"): And(str, lambda x: x in (
+           "SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING", "SUCCEEDED", "FAILED"
+       )),
        Optional("maxResults"): And(int, lambda x: 0 < x <= 100),
        Optional("multiNodeJobId"): str,
        Optional("nextToken"): str,
