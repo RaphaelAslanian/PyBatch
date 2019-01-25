@@ -1,5 +1,4 @@
 import json
-from _blake2 import blake2b
 
 from flask import Flask, request, jsonify
 from schema import SchemaError
@@ -9,7 +8,10 @@ from compute_environment import ComputeEnvironment
 from job import Job
 from job_definition import JobDefinition
 from job_queue import JobQueue
-from json_configuration import *
+from json_configuration import CONFIG_CREATE_COMPUTE_ENVIRONMENT, CONFIG_CREATE_JOB_QUEUE, \
+    CONFIG_DELETE_COMPUTE_ENVIRONMENT, CONFIG_DELETE_JOB_QUEUE, CONFIG_DEREGISTER_JOB_DEFINITION, \
+    CONFIG_DESCRIBE_COMPUTE_ENVIRONMENTS, CONFIG_DESCRIBE_JOB_DEFINITIONS, CONFIG_DESCRIBE_JOB_QUEUES, \
+    CONFIG_LIST_JOBS, CONFIG_REGISTER_JOB_DEFINITION, CONFIG_SUBMIT_JOB
 
 # ToDo: Gérer les certificats SSL
 # ToDo: Implement orders inside queues - compute environments (Almost done)
@@ -154,7 +156,10 @@ def describe_job_queues():
     data = json.loads(request.data, encoding="utf-8")
     CONFIG_DESCRIBE_JOB_QUEUES.validate(data)
     if data["jobQueues"]:
-        queues_to_describe = [job_queues[queue_name].describe(everything=True) for queue_name in data["jobQueues"] if queue_name in job_queues]
+        queues_to_describe = [
+            job_queues[queue_name].describe(everything=True)
+            for queue_name in data["jobQueues"] if queue_name in job_queues
+        ]
     else:
         queues_to_describe = [queue.describe(everything=True) for queue in job_queues.values()]
     res = {"jobQueues": queues_to_describe, "nextToken": "nextToken"}

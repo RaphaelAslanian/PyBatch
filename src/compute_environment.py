@@ -21,8 +21,17 @@ class ComputeEnvironment(Thread, StoppableThread, SchemaConstructor, ARNObject):
     def __init__(self, **kwargs):
         Thread.__init__(self)
         StoppableThread.__init__(self, setted=False)
-        SchemaConstructor.__init__(self, schema=CONFIG_CREATE_COMPUTE_ENVIRONMENT, default_values=self.DEFAULT_VALUES, defined_values=kwargs)
-        ARNObject.__init__(self, name=self.computeEnvironmentName, resource="compute-environment/" + self.computeEnvironmentName)
+        SchemaConstructor.__init__(
+            self,
+            schema=CONFIG_CREATE_COMPUTE_ENVIRONMENT,
+            default_values=self.DEFAULT_VALUES,
+            defined_values=kwargs
+        )
+        ARNObject.__init__(
+            self,
+            name=self.computeEnvironmentName,
+            resource="compute-environment/" + self.computeEnvironmentName
+        )
         self.__associated_queue = queue.PriorityQueue(maxsize=4)  # Compute maxsize as parameter of CE power
         self.__jobs_current = []
 
