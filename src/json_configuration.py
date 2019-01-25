@@ -118,7 +118,7 @@ CONFIG_LIST_JOBS = Schema(
 
 CONFIG_REGISTER_JOB_DEFINITION = Schema(
     {
-        Optional("containerProperties"): Schema(
+        "containerProperties": Schema(
             {
                 "command": [str],
                 "environment": [Schema({"name": str, "value": str})],
