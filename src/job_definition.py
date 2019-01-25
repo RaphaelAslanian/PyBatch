@@ -1,4 +1,4 @@
-from arn_dict import ARNObject
+from arn_object import ARNObject
 from json_configuration import CONFIG_REGISTER_JOB_DEFINITION
 from schema_constructor import SchemaConstructor
 

@@ -1,10 +1,11 @@
 import queue
 from threading import Thread
+from typing import Dict
 
 from json_configuration import CONFIG_CREATE_COMPUTE_ENVIRONMENT
 from schema_constructor import SchemaConstructor
 from stoppable_thread import StoppableThread
-from arn_dict import ARNObject
+from arn_object import ARNObject
 
 
 class ComputeEnvironment(Thread, StoppableThread, SchemaConstructor, ARNObject):
@@ -52,16 +53,16 @@ class ComputeEnvironment(Thread, StoppableThread, SchemaConstructor, ARNObject):
                 except queue.Empty:
                     continue
 
-    def is_enabled(self):
+    def is_enabled(self) -> bool:
         return self.state == self.STATE_ENABLED
 
-    def has_capacity(self):
+    def has_capacity(self) -> bool:
         return not self.__associated_queue.full()
 
     def add_job(self, job):
         self.__associated_queue.put_nowait(job)
 
-    def describe(self, everything=False):
+    def describe(self, everything=False) -> Dict[str, str]:
         # Todo: some values need to be checked with API reference.
         if not everything:
             return {

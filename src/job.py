@@ -62,7 +62,8 @@ class Job(Thread):
 
     def stop(self):
         if self.__container:
-            self.__container.kill()
+            self.__container.stop()
+        self.state = self.STATE_FAILED
 
     def __lt__(self, other):
         return self.priority < other.prioriy
