@@ -2,7 +2,6 @@ import datetime
 import hashlib
 import logging
 import os
-import threading
 from threading import Thread
 from typing import Dict
 
@@ -110,4 +109,3 @@ class Job(Thread):
     def change_state(self, new_state: str):
         self.state = new_state
         self.__logger.info(f"New Job state: {self.state}")
-
