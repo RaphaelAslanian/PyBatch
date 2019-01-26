@@ -70,5 +70,10 @@ d = client.submit_job(
 )
 print(d)
 print("LISTING JOBS")
-print(client.list_jobs(jobQueue="Queue_1"))
-
+# print(client.list_jobs(jobQueue="Queue_1"))
+# print("UPDATE COMPUTE ENVIRONMENT")
+# f = client.update_compute_environment(computeEnvironment="Environment_1", state="DISABLED")
+# print(f)
+# print("DELETION OF COMPUTE ENVIRONMENT")
+# e = client.delete_compute_environment(computeEnvironment="Environment_1")
+# print(e)

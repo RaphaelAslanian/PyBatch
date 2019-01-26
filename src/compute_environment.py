@@ -1,7 +1,9 @@
+import logging
 import queue
 from threading import Thread
 from typing import Dict
 
+from job import Job
 from json_configuration import CONFIG_CREATE_COMPUTE_ENVIRONMENT
 from schema_constructor import SchemaConstructor
 from stoppable_thread import StoppableThread
@@ -35,6 +37,8 @@ class ComputeEnvironment(Thread, StoppableThread, SchemaConstructor, ARNObject):
         )
         self.__associated_queue = queue.PriorityQueue(maxsize=4)  # Compute maxsize as parameter of CE power
         self.__jobs_current = []
+        self.__logger = logging.getLogger(f"[CE] {self.computeEnvironmentName} {self.getName()}")
+        self.__logger.info("Compute environment created")
 
     def run(self):
         while not self.stop_event.wait(timeout=1):
@@ -42,6 +46,7 @@ class ComputeEnvironment(Thread, StoppableThread, SchemaConstructor, ARNObject):
                 # Handle current jobs
                 for idx, job in enumerate(self.__jobs_current):
                     if job.state in (job.STATE_SUCCEEDED, job.STATE_FAILED):
+                        self.__logger.info(f"Detected job '{job.jobName}' finished")
                         self.__jobs_current.pop(idx)
                         break
                 # Take new jobs
@@ -52,14 +57,27 @@ class ComputeEnvironment(Thread, StoppableThread, SchemaConstructor, ARNObject):
                         job.start()
                 except queue.Empty:
                     continue
+        for job in self.__jobs_current:
+            job.stop()
 
     def is_enabled(self) -> bool:
+        """ Returns True if the compute environment's state is 'ENABLED' ; False otherwise """
         return self.state == self.STATE_ENABLED
 
     def has_capacity(self) -> bool:
+        """
+        Returns True if the compute environment's own internal queue is full, depicting the fact
+        that the compute environment is working at maximum capacity. False otherwise.
+        """
+
         return not self.__associated_queue.full()
 
-    def add_job(self, job):
+    def add_job(self, job: Job):
+        """
+        Add a job to the compute environment's own internal queue.
+        :param job: job to be processed by the compute environment.
+        """
+        job.change_state(Job.STATE_RUNNABLE)
         self.__associated_queue.put_nowait(job)
 
     def describe(self, everything=False) -> Dict[str, str]:
@@ -81,3 +99,6 @@ class ComputeEnvironment(Thread, StoppableThread, SchemaConstructor, ARNObject):
                 "statusReason": "",
                 "type": self.type
             }
+
+    def __del__(self):
+        self.__logger.info("Compute environment deleted")

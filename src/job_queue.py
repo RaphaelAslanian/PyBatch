@@ -47,3 +47,9 @@ class JobQueue(Queue, SchemaConstructor, ARNObject):
                 "status": "",
                 "statusReason": "",
             }
+
+    def remove_compute_environment(self, compute_environment_name: str):
+        for idx, ce in enumerate(self.computeEnvironmentOrder):
+            if ce["computeEnvironment"] == compute_environment_name:
+                self.computeEnvironmentOrder.pop(idx)
+                break

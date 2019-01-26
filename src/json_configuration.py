@@ -210,7 +210,7 @@ CONFIG_UPDATE_COMPUTE_ENVIRONMENT = Schema(
         "computeEnvironment": str,
         Optional("computeResources"): Schema({"desiredvCpus": int, "maxcCpus": int, "minvCpus": int}),
         Optional("serviceRole"): str,
-        Optional("state"): str
+        Optional("state"): And(str, lambda x: x in ("ENABLED", "DISABLED"))
     },
     ignore_extra_keys=False
 )
@@ -220,7 +220,7 @@ CONFIG_UPDATE_JOB_QUEUE = Schema(
         Optional("computeEnvironmentOrder"): [Schema({"computeEnvironment": str, "order": int})],
         "jobQueue": str,
         Optional("priority"): int,
-        Optional("state"): str
+        Optional("state"): And(str, lambda x: x in ("ENABLED", "DISABLED"))
     },
     ignore_extra_keys=False
 )

@@ -13,7 +13,8 @@ from job_queue import JobQueue
 from json_configuration import CONFIG_CREATE_COMPUTE_ENVIRONMENT, CONFIG_CREATE_JOB_QUEUE, \
     CONFIG_DELETE_COMPUTE_ENVIRONMENT, CONFIG_DELETE_JOB_QUEUE, CONFIG_DEREGISTER_JOB_DEFINITION, \
     CONFIG_DESCRIBE_COMPUTE_ENVIRONMENTS, CONFIG_DESCRIBE_JOB_DEFINITIONS, CONFIG_DESCRIBE_JOB_QUEUES, \
-    CONFIG_LIST_JOBS, CONFIG_REGISTER_JOB_DEFINITION, CONFIG_SUBMIT_JOB
+    CONFIG_LIST_JOBS, CONFIG_REGISTER_JOB_DEFINITION, CONFIG_SUBMIT_JOB, CONFIG_UPDATE_COMPUTE_ENVIRONMENT, \
+    CONFIG_UPDATE_JOB_QUEUE
 
 # ToDo: Gérer les certificats SSL
 # ToDo: Implement orders inside queues - compute environments (Almost done)
@@ -89,8 +90,8 @@ def delete_compute_environment():
     if compute_environments[data["computeEnvironment"]].state != ComputeEnvironment.STATE_DISABLED:
         abort(400, "Compute environment is not disabled.")
     for jq in job_queues.values():
-        if data["computeEnvironment"] in [ce_jq["computeEnvironment"] for ce_jq in jq["computeEnvironmentOrder"]]:
-            abort(400, f"Compute environment still active in jobQueue {jq['JobQueue']}")
+        jq.remove_compute_environment(data["computeEnvironment"])
+    compute_environments[data["computeEnvironment"]].stop_event.set()
     compute_environments.pop(data["computeEnvironment"])
     return jsonify({})
 
@@ -220,19 +221,46 @@ def submit_job():
     return jsonify({})
 
 
-@app.route("/terminatejob", methods=["POST"])
+@app.route("/v1/terminatejob", methods=["POST"])
 def terminate_job():
     pass
 
 
-@app.route("/updatecomputeenvironment", methods=["POST"])
+@app.route("/v1/updatecomputeenvironment", methods=["POST"])
 def update_compute_environment():
-    pass
+    data = json.loads(request.data, encoding="utf-8")
+    try:
+        CONFIG_UPDATE_COMPUTE_ENVIRONMENT.validate(data)
+    except SchemaError as se:
+        abort(400, f"Invalid Request {se}")
+    if data["computeEnvironment"] not in compute_environments:
+        abort(400, f"Compute environment does not exist")
+    ce_name = data.pop("computeEnvironment")
+    update_object(compute_environments[ce_name], data)
+    return jsonify(compute_environments[ce_name].describe())
 
 
 @app.route("/updatejobqueue", methods=["POST"])
 def update_job_queue():
-    pass
+    data = json.loads(request.data, encoding="utf-8")
+    try:
+        CONFIG_UPDATE_JOB_QUEUE.validate(data)
+    except SchemaError as se:
+        abort(400, f"Invalid Request {se}")
+    if data["jobQueue"] not in job_queues:
+        abort(400, f"Compute environment does not exist")
+    jq_name = data.pop("jobQueue")
+    update_object(job_queues[jq_name], data)
+    return jsonify(job_queues[jq_name].describe())
+
+
+def update_object(obj, new_dict):
+    old_dict = obj.__dict__
+    for key, value in new_dict.items():
+        if isinstance(value, dict):
+            update_object(old_dict[key], new_dict[key])
+        else:
+            old_dict[key] = new_dict[key]
 
 
 if __name__ == "__main__":
@@ -242,7 +270,7 @@ if __name__ == "__main__":
     job_queues = {}
     job_definitions = {}
     jobs = {}
-    scheduler = Scheduler(job_queues, compute_environments)
+    scheduler = Scheduler(job_queues, compute_environments, jobs)
     scheduler.start()
     try:
         # app.run(ssl_context=('server.crt', 'server.key'))
