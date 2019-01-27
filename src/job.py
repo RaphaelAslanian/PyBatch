@@ -24,7 +24,7 @@ class Job(Thread):
     STATE_SUCCEEDED = "SUCCEEDED"
     STATE_FAILED = "FAILED"
 
-    DEFAULT_VALUES = {}
+    DEFAULT_VALUES = {"dependsOn": []}
 
     def __init__(self, **kwargs):
         Thread.__init__(self)
@@ -64,16 +64,8 @@ class Job(Thread):
         result = self.__container.wait()
         self.change_state(self.STATE_SUCCEEDED if result["StatusCode"] == 0 else self.STATE_FAILED)
         self.__stopped_at = datetime.datetime.now()
-        self._save_logs(f"{self.__created_at.strftime('%Y-%m-%d_%H:%M:%S')}__{self.jobName}", self.__container.logs())
+        self._save_logs()
         self.__container.remove()
-
-    def _save_logs(self, log_filename: str, log_data: bytes):
-        try:
-            path = os.environ.get("LOG_FOLDER", "logs") + "/" + log_filename
-            with open(path, "wb") as log_file:
-                log_file.write(log_data)
-        except Exception as exc:
-            self.__logger.warning(f"Logs were not saved due to following error: {str(exc)}")
 
     def stop(self):
         if self.__container:
@@ -88,9 +80,6 @@ class Job(Thread):
             self.stop()
         else:
             self.cancel()
-
-    def __lt__(self, other) -> bool:
-        return self.priority < other.prioriy
 
     def describe(self) -> Dict[str, str]:
         return {
@@ -109,3 +98,31 @@ class Job(Thread):
     def change_state(self, new_state: str):
         self.state = new_state
         self.__logger.info(f"New Job state: {self.state}")
+
+    def _save_logs(self):
+        try:
+            log_filename = f"{self.__created_at.strftime('%Y-%m-%d_%H:%M:%S')}__{self.jobName}"
+            log_data = self.__container.logs()
+            path = os.environ.get("LOG_FOLDER", "logs") + "/" + log_filename
+            with open(path, "wb") as log_file:
+                log_file.write(log_data)
+        except Exception as exc:
+            self.__logger.warning(f"Logs were not saved due to following error: {str(exc)}")
+
+    def _remove_logs(self):
+        try:
+            log_filename = f"{self.__created_at.strftime('%Y-%m-%d_%H:%M:%S')}__{self.jobName}"
+            path = os.environ.get("LOG_FOLDER", "logs") + "/" + log_filename
+            os.remove(path)
+        except Exception as exc:
+            self.__logger.warning(f"Logs were not removed due to following error {str(exc)}")
+
+    @property
+    def jobId(self):
+        return self.__jobId
+
+    def __del__(self):
+        self._remove_logs()
+
+    def __lt__(self, other) -> bool:
+        return self.priority < other.prioriy
